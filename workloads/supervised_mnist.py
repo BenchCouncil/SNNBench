@@ -1,6 +1,8 @@
 import argparse
 import os
 import random
+import tempfile
+os.environ["MPLCONFIGDIR"] = tempfile.gettempdir()
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -124,7 +126,7 @@ network.add_monitor(inh_voltage_monitor, name="inh_voltage")
 dataset = MNIST(
     PoissonEncoder(time=time, dt=dt),
     None,
-    root=os.path.join("..", "..", "data", "MNIST"),
+    root=os.path.join("data", "MNIST"),
     download=True,
     transform=transforms.Compose(
         [transforms.ToTensor(), transforms.Lambda(lambda x: x * intensity)]
