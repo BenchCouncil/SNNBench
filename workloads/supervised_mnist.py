@@ -1,5 +1,6 @@
 import argparse
 import os
+import random
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -68,10 +69,22 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 if gpu and torch.cuda.is_available():
     torch.cuda.manual_seed_all(seed)
 else:
-    torch.manual_seed(seed)
+    # torch.manual_seed(seed)
     device = "cpu"
     if gpu:
         gpu = False
+
+torch.manual_seed(0)
+np.random.seed(0)
+torch.backends.cudnn.benchmark = False
+torch.use_deterministic_algorithms(True)
+
+def seed_worker(worker_id):
+    worker_seed = torch.initial_seed() % 2**32
+    np.random.seed(worker_seed)
+    random.seed(worker_seed)
+g = torch.Generator()
+g.manual_seed(0)
 
 torch.set_num_threads(os.cpu_count() - 1)
 print("Running on Device = ", device)
@@ -119,7 +132,11 @@ dataset = MNIST(
 )
 
 # Create a dataloader to iterate and batch data
-dataloader = torch.utils.data.DataLoader(dataset, batch_size=1, shuffle=True)
+dataloader = torch.utils.data.DataLoader(
+    dataset, batch_size=1, shuffle=True,
+    worker_init_fn=seed_worker,
+    generator=g,
+)
 
 # Record spikes during the simulation.
 spike_record = torch.zeros(update_interval, time, n_neurons, device=device)
