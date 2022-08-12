@@ -7,9 +7,6 @@ RUN apt-get update && apt-get install vim git wget curl build-essential libgl1 l
 RUN wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh
 RUN bash Miniconda3-latest-Linux-x86_64.sh -b -p /opt/miniconda
 ENV PATH=/opt/miniconda/bin:${PATH}
-RUN groupadd conda
-RUN chgrp -R conda /opt/miniconda
-RUN chmod 770 -R /opt/miniconda
 RUN conda update -y conda
 RUN conda create -n pytorch python=3.7 pytorch==1.10 torchvision cudatoolkit=10.2 -c pytorch
 ENV PATH=/opt/miniconda/envs/pytorch/bin:$PATH
