@@ -1,0 +1,22 @@
+# Pytorch 1.12 with CUDA 10.2
+FROM nvidia/cuda:10.2-runtime-ubuntu18.04
+
+RUN rm /etc/apt/sources.list.d/*
+RUN apt-get update && apt-get install vim git wget curl build-essential libgl1 libglib2.0-dev -y
+
+RUN wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh
+RUN bash Miniconda3-latest-Linux-x86_64.sh -b -p /opt/miniconda
+ENV PATH=/opt/miniconda/bin:${PATH}
+RUN conda update -y conda
+RUN conda create -n norse pytorch torchvision torchaudio cudatoolkit=10.2 -c pytorch -c norse
+# RUN conda install norse -c norse
+# RUN conda install torchaudio -c pytorch
+ENV PATH=/opt/miniconda/envs/norse/bin:$PATH
+
+# RUN conda install norse -c norse
+# RUN conda install torchaudio -c pytorch
+RUN pip install norse
+RUN pip install nvidia-pyindex
+RUN pip install nvidia-dlprof
+RUN pip install nvidia-dlprofviewer
+RUN pip install nvidia_dlprof_pytorch_nvtx
