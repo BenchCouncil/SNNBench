@@ -1,0 +1,26 @@
+# Pytorch 1.10 with CUDA 10.2
+FROM nvidia/cuda:10.2-runtime-ubuntu18.04
+
+RUN rm /etc/apt/sources.list.d/*
+RUN apt-get update && apt-get install vim git wget curl build-essential libgl1 libglib2.0-dev -y
+
+RUN wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh
+RUN bash Miniconda3-latest-Linux-x86_64.sh -b -p /opt/miniconda
+ENV PATH=/opt/miniconda/bin:${PATH}
+COPY .condarc /root/.condarc
+RUN conda clean -i
+# RUN conda config --set channel_priority false
+RUN conda update -y conda
+RUN conda create -n snnbench pytorch==1.12 torchvision torchaudio cudatoolkit=10.2 -c pytorch
+RUN conda install -n snnbench snntorch -c conda-forge
+# RUN conda install -n snnbench bindsnet=0.3.1 snntorch -c bindsnet -c conda-forge
+# RUN conda create -n snnbench pytorch=1.10 torchvision cudatoolkit=10.2 
+# RUN conda install -n snnbench bindsnet=0.3.1 snntorch -c pytorch -c conda-forge
+ENV PATH=/opt/miniconda/envs/snnbench/bin:$PATH
+
+# RUN git clone https://ghproxy.com/https://github.com/BindsNET/bindsnet.git && cd bindsnet && git checkout tags/0.3.1 && pip install .
+
+RUN pip install norse
+RUN pip install git+https://ghproxy.com/github.com/BindsNET/bindsnet.git@a1b33579768c9dea0bb9aebee6a96a7befeabb46
+RUN pip install protobuf==3.20
+# RUN pip install pillow==6.2.2
