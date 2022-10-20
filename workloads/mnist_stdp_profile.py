@@ -185,7 +185,7 @@ def trace_handler(prof):
     # print(prof.key_averages(group_by_stack_n=5).table(sort_by="self_cuda_time_total", row_limit=-1))
     # print(prof.key_averages().table(sort_by="self_cuda_time_total", row_limit=-1))
     print(prof.key_averages().table(sort_by="self_cpu_time_total", row_limit=-1))
-    sys.exit(0)
+    # sys.exit(0)
 
 # Train the network.
 print("\nBegin training.\n")
@@ -359,43 +359,60 @@ network.train(mode=False)
 start = t()
 
 # pbar = tqdm(total=n_test)
-for step, batch in enumerate(test_dataset):
-    if step >= n_test:
-        break
-    # Get next input sample.
-    inputs = {"X": batch["encoded_image"].view(int(time / dt), 1, 1, 28, 28)}
-    if gpu:
-        inputs = {k: v.cuda() for k, v in inputs.items()}
 
-    # Run the network on the input.
-    network.run(inputs=inputs, time=time, input_time_dim=1)
+with torch.profiler.profile(
+        activities=[
+            torch.profiler.ProfilerActivity.CPU,
+            # torch.profiler.ProfilerActivity.CUDA,
+            ],
+        schedule=torch.profiler.schedule(
+            wait=2,
+            warmup=2,
+            active=100,
+            repeat=1),
+        # on_trace_ready=tensorboard_trace_handler(LOG),
+        on_trace_ready=trace_handler,
+        with_stack=False
+        ) as profiler:
+    for step, batch in enumerate(test_dataset):
+        if step >= n_test:
+            break
+        # Get next input sample.
+        inputs = {"X": batch["encoded_image"].view(int(time / dt), 1, 1, 28, 28)}
+        if gpu:
+            inputs = {k: v.cuda() for k, v in inputs.items()}
 
-    # Add to spikes recording.
-    spike_record[0] = spikes["Ae"].get("s").squeeze()
+        # Run the network on the input.
+        network.run(inputs=inputs, time=time, input_time_dim=1)
 
-    # Convert the array of labels into a tensor
-    label_tensor = torch.tensor(batch["label"], device=device)
+        # Add to spikes recording.
+        spike_record[0] = spikes["Ae"].get("s").squeeze()
 
-    # Get network predictions.
-    all_activity_pred = all_activity(
-        spikes=spike_record, assignments=assignments, n_labels=n_classes
-    )
-    proportion_pred = proportion_weighting(
-        spikes=spike_record,
-        assignments=assignments,
-        proportions=proportions,
-        n_labels=n_classes,
-    )
+        # Convert the array of labels into a tensor
+        label_tensor = torch.tensor(batch["label"], device=device)
 
-    # Compute network accuracy according to available classification strategies.
-    accuracy["all"] += float(torch.sum(label_tensor.long() == all_activity_pred).item())
-    accuracy["proportion"] += float(
-        torch.sum(label_tensor.long() == proportion_pred).item()
-    )
+        # Get network predictions.
+        all_activity_pred = all_activity(
+            spikes=spike_record, assignments=assignments, n_labels=n_classes
+        )
+        proportion_pred = proportion_weighting(
+            spikes=spike_record,
+            assignments=assignments,
+            proportions=proportions,
+            n_labels=n_classes,
+        )
 
-    network.reset_state_variables()  # Reset state variables.
-    # pbar.set_description_str("Test progress: ")
-    # pbar.update()
+        # Compute network accuracy according to available classification strategies.
+        accuracy["all"] += float(torch.sum(label_tensor.long() == all_activity_pred).item())
+        accuracy["proportion"] += float(
+            torch.sum(label_tensor.long() == proportion_pred).item()
+        )
+
+        network.reset_state_variables()  # Reset state variables.
+        # pbar.set_description_str("Test progress: ")
+        # pbar.update()
+
+        profiler.step()
 
 print("\nAll activity accuracy: %.2f" % (accuracy["all"] / n_test))
 print("Proportion weighting accuracy: %.2f \n" % (accuracy["proportion"] / n_test))
