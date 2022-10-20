@@ -1,8 +1,10 @@
-DOCKER_IMAGE="bindsnet:0.1.7"
+DOCKER_IMAGE="bindsnet:0.3.1"
+# DOCKER_IMAGE="snnbench"
 
 set -x
 CMD="cd $(pwd); $@"
 docker run --rm -it \
+	       --gpus all \
 	       --ipc=host \
 	       --security-opt seccomp=unconfined \
                -v $(pwd):$(pwd) \
