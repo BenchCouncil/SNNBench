@@ -16,7 +16,10 @@ import numpy as np
 import itertools
 
 import random
+import os
+from time import perf_counter
 
+os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
 torch.manual_seed(0)
 random.seed(0)
 np.random.seed(0)
@@ -43,6 +46,7 @@ subset = 10
 
 dtype = torch.float
 device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+print(f'Running on {device}')
 
 transform = transforms.Compose([
     transforms.Resize((28, 28)),
@@ -62,7 +66,8 @@ mnist_test = datasets.MNIST(data_path, train=False, download=True, transform=tra
 train_loader = DataLoader(mnist_train, batch_size=batch_size, shuffle=True, drop_last=True, worker_init_fn=seed_worker, generator=g)
 test_loader = DataLoader(mnist_test, batch_size=batch_size, shuffle=True, drop_last=True, worker_init_fn=seed_worker, generator=g)
 
-net = nn.Sequential(nn.Conv2d(1, 12, 5),
+net = nn.Sequential(
+        nn.Conv2d(1, 12, 5),
         nn.MaxPool2d(2),
         snn.Leaky(beta=beta, spike_grad=spike_grad, init_hidden=True),
         nn.Conv2d(12, 64, 5),
@@ -115,6 +120,8 @@ def batch_accuracy(train_loader, net, num_steps):
 
     return acc / total
 
+
+# print(f'test_loader size: {len(test_loader)}')
 test_acc = batch_accuracy(test_loader, net, num_steps)
 print(f"The total accuracy on the test set is: {test_acc * 100: .2f}%")
 
@@ -123,10 +130,16 @@ num_epochs = 10
 test_acc_hist = []
 
 for epoch in range(num_epochs):
+    # print(f'In training phase, train_loader size: {len(train_loader)}')
+    start = perf_counter()
     avg_loss = backprop.BPTT(net, train_loader, optimizer=optimizer, criterion=loss_fn,
             num_steps=num_steps, time_var=False, device=device)
+    print(f'Training elapsed time: {perf_counter() - start}')
     print(f"Epoch {epoch}, Train Loss: {avg_loss.item(): .2f}")
 
+    # print(f'In training phase, test_loader size: {len(test_loader)}')
+    start = perf_counter()
     test_acc = batch_accuracy(test_loader, net, num_steps)
+    print(f'Inference elapsed time: {perf_counter() - start}')
     test_acc_hist.append(test_acc)
     print(f"Epoch {epoch}, Test Acc: {test_acc * 100: .2f}%\n")
