@@ -1,37 +1,32 @@
+from speech_commands.model import LSTMModel, lsnn_model, lif_model
+from speech_commands.speech_commands import SpeechCommandsDataset, prepare_dataset
+
 import torch
+from torch.profiler import profile, record_function, tensorboard_trace_handler, ProfilerActivity
+import torchaudio
+import numpy
+
 import os
 import sys
 import time
 import random
-from torch.profiler import profile, record_function, tensorboard_trace_handler, ProfilerActivity
 import pickle
+import argparse
 
 # import nvidia_dlprof_pytorch_nvtx
 # nvidia_dlprof_pytorch_nvtx.init()
 
+print(torch.__config__.parallel_info())
+# sys.exit()
+
 torch.manual_seed(0)
 random.seed(0)
+numpy.random.seed(0)
 torch.backends.cudnn.benchmark = False
 torch.backends.cudnn.deterministic = True
 torch.use_deterministic_algorithms(True)
-os.environ["CUBLAS_WORKSPACE_CONFIG"]=":4096:8"
+os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
 
-# pytype: disable=import-error
-import torchaudio
-import numpy
-
-numpy.random.seed(0)
-
-# pytype: enable=import-error
-import argparse
-
-from speech_commands.speech_commands import SpeechCommandsDataset, prepare_dataset
-
-# pytype: disable=import-error
-# from norse.task.speech_commands.model import LSTMModel, lsnn_model, lif_model
-from speech_commands.model import LSTMModel, lsnn_model, lif_model
-
-# pytype: enable=import-error
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--learning_rate", default=0.0001)
@@ -68,7 +63,6 @@ class SubsetSC(torchaudio.datasets.SPEECHCOMMANDS):
             self._walker = [w for w in self._walker if w not in excludes]
 
 
-
 speech_commands = torchaudio.datasets.SPEECHCOMMANDS(root=".", download=True)
 train_sc = SubsetSC('training')
 valid_sc = SubsetSC('validation')
@@ -76,7 +70,6 @@ test_sc = SubsetSC('testing')
 # train_sc, valid_sc, test_sc = prepare_dataset(speech_commands)
 
 print(f'train_sc: {len(train_sc)}, valid_sc: {len(valid_sc)}, test_sc: {len(test_sc)}')
-# exit(1)
 
 
 train_transform = torch.nn.Sequential(
@@ -139,24 +132,47 @@ else:
 loss_function = torch.nn.NLLLoss()
 optimizer = torch.optim.Adam(model.parameters(), lr=LR)
 
+def trace_handler(prof):
+    # print(vars(prof))
+    # print(prof.key_averages(group_by_stack_n=5).table(sort_by="self_cuda_time_total", row_limit=-1))
+    # print(prof.key_averages().table(sort_by="self_cuda_time_total", row_limit=-1))
+    print(prof.key_averages().table(sort_by="self_cpu_time_total", row_limit=-1))
+    # with open(f'profile_${MODEL}.pkl', 'wb') as outp:
+    #     pickle.dump(prof, outp)
+    sys.exit(0)
 
 def test(model, test_loader, epoch):
     model.eval()
     test_loss = 0
     correct = 0
     with torch.no_grad():
-        for data, target in test_loader:
-            data, target = data.to(DEVICE), target.to(DEVICE)
-            data = data.squeeze(1)
-            data = data.permute(2, 0, 1)
-            output = model(data)
-            test_loss += torch.nn.functional.nll_loss(
-                output, target, reduction="sum"
-            ).item()  # sum up batch loss
-            pred = output.argmax(
-                dim=1, keepdim=True
-            )  # get the index of the max log-probability
-            correct += pred.eq(target.view_as(pred)).sum().item()
+        with torch.profiler.profile(
+                activities=[
+                    torch.profiler.ProfilerActivity.CPU,
+                    # torch.profiler.ProfilerActivity.CUDA,
+                    ],
+                schedule=torch.profiler.schedule(
+                    wait=2,
+                    warmup=2,
+                    active=100,
+                    repeat=1),
+                # on_trace_ready=tensorboard_trace_handler(LOG),
+                on_trace_ready=trace_handler,
+                with_stack=False
+                ) as profiler:
+            for data, target in test_loader:
+                data, target = data.to(DEVICE), target.to(DEVICE)
+                data = data.squeeze(1)
+                data = data.permute(2, 0, 1)
+                output = model(data)
+                test_loss += torch.nn.functional.nll_loss(
+                    output, target, reduction="sum"
+                ).item()  # sum up batch loss
+                pred = output.argmax(
+                    dim=1, keepdim=True
+                )  # get the index of the max log-probability
+                correct += pred.eq(target.view_as(pred)).sum().item()
+                profiler.step()
 
     test_loss /= len(test_loader.dataset)
 
@@ -170,16 +186,6 @@ def test(model, test_loader, epoch):
 
 test(model, test_loader, 0)
 # exit(0)
-
-def trace_handler(prof):
-    print(vars(prof))
-    # print(prof.key_averages(group_by_stack_n=5).table(sort_by="self_cuda_time_total", row_limit=-1))
-    # print(prof.key_averages().table(sort_by="self_cuda_time_total", row_limit=-1))
-    print(prof.key_averages().table(sort_by="self_cpu_time_total", row_limit=-1))
-    # with open(f'profile_${MODEL}.pkl', 'wb') as outp:
-    #     pickle.dump(prof, outp)
-    sys.exit(0)
-
 
 for epoch in range(1):
     model.train()
