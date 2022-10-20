@@ -1,32 +1,23 @@
+from speech_commands.model import LSTMModel, lsnn_model, lif_model
+from speech_commands.speech_commands import SpeechCommandsDataset, prepare_dataset
+
 import torch
+import torchaudio
+import numpy
+
 import os
 import sys
 import time
 import random
+import argparse
 
 torch.manual_seed(0)
+numpy.random.seed(0)
 random.seed(0)
 torch.backends.cudnn.benchmark = False
 torch.backends.cudnn.deterministic = True
 torch.use_deterministic_algorithms(True)
-os.environ["CUBLAS_WORKSPACE_CONFIG"]=":4096:8"
-
-# pytype: disable=import-error
-import torchaudio
-import numpy
-
-numpy.random.seed(0)
-
-# pytype: enable=import-error
-import argparse
-
-from speech_commands.speech_commands import SpeechCommandsDataset, prepare_dataset
-
-# pytype: disable=import-error
-# from norse.task.speech_commands.model import LSTMModel, lsnn_model, lif_model
-from speech_commands.model import LSTMModel, lsnn_model, lif_model
-
-# pytype: enable=import-error
+os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--learning_rate", default=0.0001)
@@ -59,7 +50,6 @@ class SubsetSC(torchaudio.datasets.SPEECHCOMMANDS):
             excludes = load_list("validation_list.txt") + load_list("testing_list.txt")
             excludes = set(excludes)
             self._walker = [w for w in self._walker if w not in excludes]
-
 
 
 speech_commands = torchaudio.datasets.SPEECHCOMMANDS(root=".", download=True)
@@ -100,6 +90,7 @@ def seed_worker(worker_id):
     numpy.random.seed(worker_seed)
     random.seed(worker_seed)
 
+
 g = torch.Generator()
 g.manual_seed(0)
 
@@ -120,7 +111,6 @@ test_loader = torch.utils.data.DataLoader(
     worker_init_fn=seed_worker,
     generator=g,
 )
-# pytype: enable=module-attr
 
 if MODEL == "lif":
     model = lif_model(n_output=13).to(DEVICE)
