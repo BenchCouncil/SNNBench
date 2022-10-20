@@ -1,6 +1,9 @@
 import argparse
 import os
-from time import time
+import sys
+from time import time, perf_counter
+
+from mlp import MLP
 
 import torch
 import numpy as np
@@ -10,8 +13,7 @@ from bindsnet.conversion import ann_to_snn
 from bindsnet.encoding import RepeatEncoder
 from bindsnet.datasets import MNIST, DataLoader
 
-from minibatch import ROOT_DIR
-from minibatch.conversion.mlp import MLP
+ROOT_DIR = '.'
 
 
 def main(args):
@@ -48,11 +50,14 @@ def main(args):
     )
 
     # Do ANN to SNN conversion.
+    conversion_start = perf_counter()
     data = dataset.data.float()
     data /= data.max()
     data = data.view(-1, 784)
     snn = ann_to_snn(ann, input_shape=(784,), data=data.to(device))
+    print(f'Conversion Finished: {perf_counter() - conversion_start}')
     snn = snn.to(device)
+    print(f'Conversion Loaded: {perf_counter() - conversion_start}')
 
     print(snn)
 
@@ -60,31 +65,45 @@ def main(args):
     dataloader = DataLoader(
         dataset,
         batch_size=args.batch_size,
-        shuffle=True,
-        num_workers=args.n_workers,
         pin_memory=args.gpu,
     )
 
     correct = 0
     t0 = time()
-    for step, batch in enumerate(tqdm(dataloader)):
-        # Prep next input batch.
-        inputs = batch["encoded_image"]
-        labels = batch["label"]
+    with torch.profiler.profile(
+            activities=[
+                torch.profiler.ProfilerActivity.CPU,
+                # torch.profiler.ProfilerActivity.CUDA,
+                ],
+            schedule=torch.profiler.schedule(
+                wait=2,
+                warmup=2,
+                active=100,
+                repeat=1),
+            # on_trace_ready=tensorboard_trace_handler(LOG),
+            on_trace_ready=trace_handler,
+            with_stack=False
+            ) as profiler:
+        for step, batch in enumerate(tqdm(dataloader)):
+            # Prep next input batch.
+            inputs = batch["encoded_image"]
+            labels = batch["label"]
 
-        inpts = {"Input": inputs}
-        if args.gpu:
-            inpts = {k: v.cuda() for k, v in inpts.items()}
+            inpts = {"Input": inputs}
+            if args.gpu:
+                inpts = {k: v.cuda() for k, v in inpts.items()}
 
-        # Run the network on the input.
-        snn.run(inpts=inpts, time=args.time, one_step=args.one_step)
+            # Run the network on the input.
+            snn.run(inputs=inpts, time=args.time, one_step=args.one_step)
 
-        output_voltages = snn.layers["5"].summed
-        prediction = torch.softmax(output_voltages, dim=1).argmax(dim=1)
-        correct += (prediction.cpu() == labels).sum().item()
+            output_voltages = snn.layers["5"].summed
+            prediction = torch.softmax(output_voltages, dim=1).argmax(dim=1)
+            correct += (prediction.cpu() == labels).sum().item()
 
-        # Reset state variables.
-        snn.reset_()
+            # Reset state variables.
+            # snn.reset_() # for bindsnet 0.2.5
+            snn.reset_state_variables()
+            profiler.step()
 
     t1 = time() - t0
 
@@ -105,6 +124,9 @@ def main(args):
 
     return t1
 
+def trace_handler(prof):
+    print(prof.key_averages().table(sort_by="self_cpu_time_total", row_limit=-1))
+    sys.exit(0)
 
 def parse_args():
     parser = argparse.ArgumentParser()
