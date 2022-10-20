@@ -11,7 +11,7 @@ COPY .condarc /root/.condarc
 RUN conda clean -i
 # RUN conda config --set channel_priority false
 RUN conda update -y conda
-RUN conda create -n snnbench pytorch==1.12 torchvision torchaudio cudatoolkit=10.2 -c pytorch
+RUN conda create -n snnbench python=3.9 pytorch=1.12 torchvision torchaudio cudatoolkit=10.2 -c pytorch
 RUN conda install -n snnbench snntorch -c conda-forge
 # RUN conda install -n snnbench bindsnet=0.3.1 snntorch -c bindsnet -c conda-forge
 # RUN conda create -n snnbench pytorch=1.10 torchvision cudatoolkit=10.2 
