@@ -48,6 +48,8 @@ parser.add_argument("--train", dest="train", action="store_true")
 parser.add_argument("--test", dest="train", action="store_false")
 parser.add_argument("--plot", dest="plot", action="store_true")
 parser.add_argument("--gpu", dest="gpu", action="store_true")
+parser.add_argument("--num_interop_threads", type=int, default=-1)
+parser.add_argument("--num_threads", type=int, default=-1)
 parser.set_defaults(plot=False, gpu=False, train=True)
 
 args = parser.parse_args()
@@ -69,6 +71,12 @@ update_interval = args.update_interval
 train = args.train
 plot = args.plot
 gpu = args.gpu
+num_interop_threads = args.num_interop_threads
+num_threads = args.num_threads
+if num_interop_threads is not None:
+    torch.set_num_interop_threads(num_interop_threads)
+if num_threads is not None:
+    torch.set_num_threads(num_threads)
 
 # Sets up Gpu use
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -93,10 +101,12 @@ def seed_worker(worker_id):
     worker_seed = torch.initial_seed() % 2**32
     np.random.seed(worker_seed)
     random.seed(worker_seed)
+
+
 g = torch.Generator()
 g.manual_seed(0)
 
-torch.set_num_threads(os.cpu_count() - 1)
+# torch.set_num_threads(os.cpu_count() - 1)
 print("Running on Device = ", device)
 
 # Determines number of workers to use
@@ -185,8 +195,9 @@ def trace_handler(prof):
     # print(prof.key_averages(group_by_stack_n=5).table(sort_by="self_cuda_time_total", row_limit=-1))
     # print(prof.key_averages().table(sort_by="self_cuda_time_total", row_limit=-1))
     print(prof.key_averages().table(sort_by="self_cpu_time_total", row_limit=-1))
-    # sys.exit(0)
+    sys.exit(0)
 
+print(torch.__config__.parallel_info())
 # Train the network.
 print("\nBegin training.\n")
 start = t()
@@ -217,7 +228,7 @@ for epoch in range(n_epochs):
             schedule=torch.profiler.schedule(
                 wait=2,
                 warmup=2,
-                active=100,
+                active=10,
                 repeat=1),
             # on_trace_ready=tensorboard_trace_handler(LOG),
             on_trace_ready=trace_handler,
@@ -330,8 +341,7 @@ for epoch in range(n_epochs):
 
             network.reset_state_variables()  # Reset state variables.
             profiler.step()
-
-print("Progress: %d / %d (%.4f seconds)" % (epoch + 1, n_epochs, t() - start))
+    print("Progress: %d / %d (%.4f seconds)" % (epoch + 1, n_epochs, t() - start))
 print("Training complete.\n")
 
 
@@ -348,7 +358,7 @@ test_dataset = MNIST(
 )
 
 # Sequence of accuracy estimates.
-accuracy = {"all": 0, "proportion": 0}
+accuracy = {"all": 0.0, "proportion": 0.0}
 
 # Record spikes during the simulation.
 spike_record = torch.zeros((1, int(time / dt), n_neurons), device=device)
