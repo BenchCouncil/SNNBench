@@ -99,6 +99,9 @@ print(f"The loss from an untrained network is {loss_val.item():.3f}")
 
 acc = SF.accuracy_rate(spk_rec, targets)
 
+def trace_handler(prof):
+    print(prof.key_averages().table(sort_by="self_cpu_time_total", row_limit=-1))
+    sys.exit(0)
 
 def batch_accuracy(train_loader, net, num_steps):
     with torch.no_grad():
@@ -107,31 +110,41 @@ def batch_accuracy(train_loader, net, num_steps):
         net.eval()
 
         train_loader = iter(train_loader)
-        for data, targets in train_loader:
-            data = data.to(device)
-            targets = targets.to(device)
-            spk_rec, _ = forward_pass(net, num_steps, data)
+        with torch.profiler.profile(
+                activities=[
+                    torch.profiler.ProfilerActivity.CPU,
+                    # torch.profiler.ProfilerActivity.CUDA,
+                    ],
+                schedule=torch.profiler.schedule(
+                    wait=0,
+                    warmup=1,
+                    active=100,
+                    repeat=1),
+                # on_trace_ready=tensorboard_trace_handler(LOG),
+                on_trace_ready=trace_handler,
+                with_stack=False
+                ) as profiler:
+            for data, targets in train_loader:
+                data = data.to(device)
+                targets = targets.to(device)
+                spk_rec, _ = forward_pass(net, num_steps, data)
 
-            acc += SF.accuracy_rate(spk_rec, targets) * spk_rec.size(1)
-            total += spk_rec.size(1)
+                acc += SF.accuracy_rate(spk_rec, targets) * spk_rec.size(1)
+                total += spk_rec.size(1)
+
+                profiler.step()
 
     return acc / total
 
+
 test_acc = batch_accuracy(test_loader, net, num_steps)
 print(f"The total accuracy on the test set is: {test_acc * 100: .2f}%")
+sys.exit(0)
 
 optimizer = torch.optim.Adam(net.parameters(), lr=1e-2, betas=(0.9, 0.9999))
 num_epochs = 10
 test_acc_hist = []
 
-def trace_handler(prof):
-    # print(vars(prof))
-    # print(prof.key_averages(group_by_stack_n=5).table(sort_by="self_cuda_time_total", row_limit=-1))
-    # print(prof.key_averages().table(sort_by="self_cuda_time_total", row_limit=-1))
-    print(prof.key_averages().table(sort_by="self_cpu_time_total", row_limit=-1))
-    # with open(f'profile_${MODEL}.pkl', 'wb') as outp:
-    #     pickle.dump(prof, outp)
-    sys.exit(0)
 
 with torch.profiler.profile(
         activities=[
