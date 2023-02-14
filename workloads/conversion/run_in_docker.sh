@@ -1,5 +1,5 @@
-DOCKER_IMAGE="bindsnet:0.3.1"
-# DOCKER_IMAGE="snnbench"
+DOCKER_IMAGE=bindsnet:0.3.1
+# DOCKER_IMAGE=bindsnet:0.3.1
 
 set -x
 CMD="cd $(pwd); $@"

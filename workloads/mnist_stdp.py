@@ -307,7 +307,7 @@ for epoch in range(n_epochs):
 
         network.reset_state_variables()  # Reset state variables.
 
-print("Progress: %d / %d (%.4f seconds)" % (epoch + 1, n_epochs, t() - start))
+    print("Progress: %d / %d (%.4f seconds)" % (epoch + 1, n_epochs, t() - start))
 print("Training complete.\n")
 
 

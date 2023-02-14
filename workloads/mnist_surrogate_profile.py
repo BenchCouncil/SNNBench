@@ -18,6 +18,22 @@ import itertools
 
 import random
 import sys
+import argparse
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--num_interop_threads", type=int)
+parser.add_argument("--num_threads", type=int)
+
+args = parser.parse_args()
+
+num_interop_threads = args.num_interop_threads
+num_threads = args.num_threads
+
+if num_interop_threads is not None:
+    torch.set_num_interop_threads(num_interop_threads)
+if num_threads is not None:
+    torch.set_num_threads(num_threads)
+print(torch.__config__.parallel_info())
 
 torch.manual_seed(0)
 random.seed(0)
@@ -100,7 +116,8 @@ print(f"The loss from an untrained network is {loss_val.item():.3f}")
 acc = SF.accuracy_rate(spk_rec, targets)
 
 def trace_handler(prof):
-    print(prof.key_averages().table(sort_by="self_cpu_time_total", row_limit=-1))
+    print(prof.key_averages(group_by_input_shape=True).table(sort_by="self_cpu_time_total", row_limit=-1))
+    # print(prof.key_averages().table(sort_by="self_cpu_time_total", row_limit=-1))
     sys.exit(0)
 
 def batch_accuracy(train_loader, net, num_steps):
@@ -116,13 +133,14 @@ def batch_accuracy(train_loader, net, num_steps):
                     # torch.profiler.ProfilerActivity.CUDA,
                     ],
                 schedule=torch.profiler.schedule(
-                    wait=0,
+                    wait=1,
                     warmup=1,
-                    active=100,
-                    repeat=1),
+                    active=10,
+                    repeat=10),
                 # on_trace_ready=tensorboard_trace_handler(LOG),
                 on_trace_ready=trace_handler,
-                with_stack=False
+                record_shapes=True,
+                with_stack=False,
                 ) as profiler:
             for data, targets in train_loader:
                 data = data.to(device)
@@ -158,7 +176,7 @@ with torch.profiler.profile(
             repeat=1),
         # on_trace_ready=tensorboard_trace_handler(LOG),
         on_trace_ready=trace_handler,
-        with_stack=False
+        with_stack=True
         ) as profiler:
     for epoch in range(num_epochs):
         avg_loss = backprop.BPTT(net, train_loader, optimizer=optimizer, criterion=loss_fn,

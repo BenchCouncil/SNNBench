@@ -48,8 +48,8 @@ parser.add_argument("--train", dest="train", action="store_true")
 parser.add_argument("--test", dest="train", action="store_false")
 parser.add_argument("--plot", dest="plot", action="store_true")
 parser.add_argument("--gpu", dest="gpu", action="store_true")
-parser.add_argument("--num_interop_threads", type=int, default=-1)
-parser.add_argument("--num_threads", type=int, default=-1)
+parser.add_argument("--num_interop_threads", type=int)
+parser.add_argument("--num_threads", type=int)
 parser.set_defaults(plot=False, gpu=False, train=True)
 
 args = parser.parse_args()
@@ -194,7 +194,10 @@ voltage_axes, voltage_ims = None, None
 def trace_handler(prof):
     # print(prof.key_averages(group_by_stack_n=5).table(sort_by="self_cuda_time_total", row_limit=-1))
     # print(prof.key_averages().table(sort_by="self_cuda_time_total", row_limit=-1))
-    print(prof.key_averages().table(sort_by="self_cpu_time_total", row_limit=-1))
+    print(prof.key_averages(group_by_input_shape=True).table(sort_by="self_cpu_time_total", row_limit=-1))
+    # print(prof.key_averages(group_by_input_shape=True, group_by_stack_n=10).table(sort_by="self_cpu_time_total", row_limit=-1))
+    # print(prof.key_averages(group_by_stack_n=1).table(sort_by="self_cpu_time_total", row_limit=-1))
+    # print(prof)
     sys.exit(0)
 
 print(torch.__config__.parallel_info())
@@ -226,12 +229,13 @@ for epoch in range(n_epochs):
                 # torch.profiler.ProfilerActivity.CUDA,
                 ],
             schedule=torch.profiler.schedule(
-                wait=2,
-                warmup=2,
+                wait=1,
+                warmup=1,
                 active=10,
-                repeat=1),
+                repeat=10),
             # on_trace_ready=tensorboard_trace_handler(LOG),
             on_trace_ready=trace_handler,
+            record_shapes=True,
             with_stack=False
             ) as profiler:
         for step, batch in enumerate(dataloader):
@@ -376,10 +380,10 @@ with torch.profiler.profile(
             # torch.profiler.ProfilerActivity.CUDA,
             ],
         schedule=torch.profiler.schedule(
-            wait=2,
-            warmup=2,
-            active=100,
-            repeat=1),
+            wait=1,
+            warmup=1,
+            active=10,
+            repeat=0),
         # on_trace_ready=tensorboard_trace_handler(LOG),
         on_trace_ready=trace_handler,
         with_stack=False

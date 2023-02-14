@@ -16,8 +16,6 @@ import argparse
 # import nvidia_dlprof_pytorch_nvtx
 # nvidia_dlprof_pytorch_nvtx.init()
 
-print(torch.__config__.parallel_info())
-# sys.exit()
 
 torch.manual_seed(0)
 random.seed(0)
@@ -34,6 +32,8 @@ parser.add_argument("--batch_size", default=16)
 parser.add_argument("--device", default="cuda")
 parser.add_argument("--model", default="lif")
 parser.add_argument("--log", default=".")
+parser.add_argument("--num_interop_threads", type=int)
+parser.add_argument("--num_threads", type=int)
 
 args = parser.parse_args()
 
@@ -43,6 +43,14 @@ DEVICE = args.device  # "cuda"
 MODEL = args.model  # "lif"
 LOG = args.log
 
+num_interop_threads = args.num_interop_threads
+num_threads = args.num_threads
+
+if num_interop_threads is not None:
+    torch.set_num_interop_threads(num_interop_threads)
+if num_threads is not None:
+    torch.set_num_threads(num_threads)
+print(torch.__config__.parallel_info())
 
 class SubsetSC(torchaudio.datasets.SPEECHCOMMANDS):
     def __init__(self, subset: str = None):
@@ -136,9 +144,16 @@ def trace_handler(prof):
     # print(vars(prof))
     # print(prof.key_averages(group_by_stack_n=5).table(sort_by="self_cuda_time_total", row_limit=-1))
     # print(prof.key_averages().table(sort_by="self_cuda_time_total", row_limit=-1))
-    print(prof.key_averages().table(sort_by="self_cpu_time_total", row_limit=-1))
+    return
+    print(prof.key_averages(group_by_input_shape=True).table(sort_by="self_cpu_time_total", row_limit=-1))
+    # print(prof.key_averages().table(sort_by="self_cpu_time_total", row_limit=-1))
     # with open(f'profile_${MODEL}.pkl', 'wb') as outp:
     #     pickle.dump(prof, outp)
+    # sys.exit(0)
+
+def training_trace_handler(prof):
+    print(prof.key_averages(group_by_input_shape=True).table(sort_by="self_cpu_time_total", row_limit=-1))
+    # print(prof.key_averages().table(sort_by="self_cpu_time_total", row_limit=-1))
     sys.exit(0)
 
 def test(model, test_loader, epoch):
@@ -152,12 +167,13 @@ def test(model, test_loader, epoch):
                     # torch.profiler.ProfilerActivity.CUDA,
                     ],
                 schedule=torch.profiler.schedule(
-                    wait=2,
-                    warmup=2,
-                    active=100,
-                    repeat=1),
+                    wait=1,
+                    warmup=1,
+                    active=10,
+                    repeat=10),
                 # on_trace_ready=tensorboard_trace_handler(LOG),
                 on_trace_ready=trace_handler,
+                record_shapes=True,
                 with_stack=False
                 ) as profiler:
             for data, target in test_loader:
@@ -198,12 +214,13 @@ for epoch in range(1):
                 # torch.profiler.ProfilerActivity.CUDA,
                 ],
             schedule=torch.profiler.schedule(
-                wait=2,
-                warmup=2,
-                active=100,
-                repeat=1),
+                wait=1,
+                warmup=1,
+                active=10,
+                repeat=10),
             # on_trace_ready=tensorboard_trace_handler(LOG),
-            on_trace_ready=trace_handler,
+            on_trace_ready=training_trace_handler,
+            record_shapes=True,
             with_stack=False
             ) as profiler:
         for idx, (data, target) in enumerate(train_loader):

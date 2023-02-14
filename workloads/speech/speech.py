@@ -152,7 +152,7 @@ def test(model, test_loader, epoch):
 
 
 test(model, test_loader, 0)
-for epoch in range(10):
+for epoch in range(50):
     model.train()
     print(f"=========== {epoch} ===========")
     start = time.perf_counter()

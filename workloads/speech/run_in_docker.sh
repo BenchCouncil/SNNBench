@@ -1,4 +1,4 @@
-DOCKER_IMAGE="norse"
+DOCKER_IMAGE=norse
 
 set -x
 CMD="cd $(pwd); $@"

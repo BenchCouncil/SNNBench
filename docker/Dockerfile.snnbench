@@ -1,9 +1,9 @@
-# Pytorch 1.10 with CUDA 10.2
-FROM nvidia/cuda:10.2-runtime-ubuntu18.04
-
-RUN rm /etc/apt/sources.list.d/*
-RUN apt-get update && apt-get install vim git wget curl build-essential libgl1 libglib2.0-dev -y
-
+# Pytorch 1.10 with CUDA 10.2                                                                                                                                                                             
+FROM nvidia/cuda:10.2-runtime-ubuntu18.04                                                                                                                                                                 
+                                                                                                                                                                                                          
+RUN rm /etc/apt/sources.list.d/*                                                                                                                                                                          
+RUN apt-get update && apt-get install vim git wget curl build-essential libgl1 libglib2.0-dev -y                                                                                                          
+                                                                                                                                                                                                          
 RUN wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh
 RUN bash Miniconda3-latest-Linux-x86_64.sh -b -p /opt/miniconda
 ENV PATH=/opt/miniconda/bin:${PATH}

@@ -1,5 +1,6 @@
 import os
 import argparse
+from time import perf_counter
 
 import torch
 import numpy as np
@@ -8,11 +9,21 @@ import torch.optim as optim
 from torchvision import transforms
 from torchvision.datasets import MNIST
 
-from minibatch import ROOT_DIR
-from minibatch.conversion.mlp import MLP
+# from minibatch import ROOT_DIR
+from mlp import MLP
 
+ROOT_DIR="."
 
 def main(args):
+    num_interop_threads = args.num_interop_threads
+    num_threads = args.num_threads
+
+    if num_interop_threads is not None:
+        torch.set_num_interop_threads(num_interop_threads)
+    if num_threads is not None:
+        torch.set_num_threads(num_threads)
+    print(torch.__config__.parallel_info())
+
     if args.gpu and torch.cuda.is_available():
         torch.cuda.manual_seed_all(args.seed)
 
@@ -64,11 +75,35 @@ def main(args):
     optimizer = optim.Adam(params=ann.parameters(), lr=5e-4)
     criterion = nn.CrossEntropyLoss()
 
+    # test dataset first
+    ann.eval()
+    test_loss = 0
+    correct = 0
+    with torch.no_grad():
+        for data, target in test_loader:
+            data, target = data.to(device), target.to(device)
+
+            # Forward pass.
+            output = ann(data)
+
+            # Sum batch loss.
+            test_loss += criterion(output, target).item()
+
+            # Get the index of the max log-probability.
+            pred = output.argmax(dim=1, keepdim=True)
+            correct += pred.eq(target.view_as(pred)).sum().item()
+
+    test_loss /= len(test_loader.dataset)
+
+    accuracy = 100.0 * correct / len(test_loader.dataset)
+    print(f'Accuracy before training: {accuracy}')
+
     # Train / test the ANN.
     best_accuracy = -np.inf
     for epoch in range(1, args.n_epochs + 1):
 
         # Training.
+        train_start = perf_counter()
         ann.train()
         correct = 0
         for batch_idx, (data, target) in enumerate(train_loader):
@@ -99,8 +134,10 @@ def main(args):
                 100.0 * correct / len(train_loader.dataset)
             )
         )
+        print(f"Training time: {perf_counter() - train_start}")
 
         # Testing.
+        test_start = perf_counter()
         ann.eval()
         test_loss = 0
         correct = 0
@@ -132,6 +169,7 @@ def main(args):
                 test_loss, correct, len(test_loader.dataset), accuracy
             )
         )
+        print(f'Inference time: {perf_counter() - test_start}')
 
 
 def parse_args():
@@ -142,6 +180,8 @@ def parse_args():
     parser.add_argument("--batch-size", type=int, default=100)
     parser.add_argument("--n-workers", type=int, default=-1)
     parser.add_argument("--gpu", action="store_true")
+    parser.add_argument("--num_interop_threads", type=int)
+    parser.add_argument("--num_threads", type=int)
     return parser.parse_args()
 
 

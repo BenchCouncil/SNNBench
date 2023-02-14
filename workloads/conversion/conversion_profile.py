@@ -38,12 +38,23 @@ def trace_handler(prof):
     # print(vars(prof))
     # print(prof.key_averages(group_by_stack_n=5).table(sort_by="self_cuda_time_total", row_limit=-1))
     # print(prof.key_averages().table(sort_by="self_cuda_time_total", row_limit=-1))
-    print(prof.key_averages().table(sort_by="self_cpu_time_total", row_limit=-1))
+    print(prof.key_averages(group_by_input_shape=True).table(sort_by="self_cpu_time_total", row_limit=-1))
+    # print(prof.key_averages().table(sort_by="self_cpu_time_total", row_limit=-1))
     # with open(f'profile_${MODEL}.pkl', 'wb') as outp:
     #     pickle.dump(prof, outp)
     sys.exit(0)
 
+
 def main(args):
+    num_interop_threads = args.num_interop_threads
+    num_threads = args.num_threads
+
+    if num_interop_threads is not None:
+        torch.set_num_interop_threads(num_interop_threads)
+    if num_threads is not None:
+        torch.set_num_threads(num_threads)
+    print(torch.__config__.parallel_info())
+
     if args.gpu and torch.cuda.is_available():
         torch.cuda.manual_seed_all(args.seed)
 
@@ -112,12 +123,13 @@ def main(args):
                     # torch.profiler.ProfilerActivity.CUDA,
                     ],
                 schedule=torch.profiler.schedule(
-                    wait=2,
-                    warmup=2,
-                    active=100,
-                    repeat=1),
+                    wait=1,
+                    warmup=1,
+                    active=10,
+                    repeat=10),
                 # on_trace_ready=tensorboard_trace_handler(LOG),
                 on_trace_ready=trace_handler,
+                record_shapes=True,
                 with_stack=False
                 ) as profiler:
             for batch_idx, (data, target) in enumerate(train_loader):
@@ -192,6 +204,8 @@ def parse_args():
     parser.add_argument("--batch-size", type=int, default=100)
     parser.add_argument("--n-workers", type=int, default=-1)
     parser.add_argument("--gpu", action="store_true")
+    parser.add_argument("--num_interop_threads", type=int)
+    parser.add_argument("--num_threads", type=int)
     return parser.parse_args()
 
 
