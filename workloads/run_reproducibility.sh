@@ -31,14 +31,15 @@ profile () {
 	done
 }
 
-RUN_TAG=run_conversion_cpu_3
+RUN_TAG=image_stdp_fixed
 
-# profile mnist_stdp bindsnet:0.3.1 ${BASE_DIR} ${RUN_TAG} "--update_interval 100 --n_train 1000 --n_test 100 --n_epochs 1 --gpu"
+# profile mnist_stdp_profile bindsnet:0.3.1 ${BASE_DIR} ${RUN_TAG} "--update_interval 100 --n_train 1000 --n_test 100 --n_epochs 1 --gpu"
+profile mnist_stdp bindsnet:0.3.1 ${BASE_DIR} ${RUN_TAG} "--update_interval 100 --n_train 1000 --n_test 100 --n_epochs 1 --gpu"
 # profile mnist_surrogate snnbench ${BASE_DIR} ${RUN_TAG}
 # profile train_mlp bindsnet:0.3.1 ${BASE_DIR}/conversion ${RUN_TAG} "--job-dir logs --gpu"
 # profile snn_inference bindsnet:0.3.1 ${BASE_DIR}/conversion ${RUN_TAG} "--job-dir logs --gpu --results-file ann"
-profile train_mlp bindsnet:0.3.1 ${BASE_DIR}/conversion ${RUN_TAG} "--job-dir logs"
-profile snn_inference bindsnet:0.3.1 ${BASE_DIR}/conversion ${RUN_TAG} "--job-dir logs --results-file ann"
+# profile train_mlp bindsnet:0.3.1 ${BASE_DIR}/conversion ${RUN_TAG} "--job-dir logs"
+# profile snn_inference bindsnet:0.3.1 ${BASE_DIR}/conversion ${RUN_TAG} "--job-dir logs --results-file ann"
 # for model in lif lsnn lstm
 # do
 # 	# profile speech norse ${BASE_DIR}/speech run_1/${model} "--model ${model} --device cpu"
