@@ -1,4 +1,4 @@
-DOCKER_IMAGE=bindsnet:0.3.1
+DOCKER_IMAGE=bindsnet:0.2.5
 # DOCKER_IMAGE=bindsnet:0.3.1
 
 set -x

@@ -95,15 +95,16 @@ def main(args):
             inpts = {k: v.cuda() for k, v in inpts.items()}
 
         # Run the network on the input.
-        snn.run(inputs=inpts, time=args.time, one_step=args.one_step)
+        # snn.run(inputs=inpts, time=args.time, one_step=args.one_step)
+        snn.run(inpts=inpts, time=args.time, one_step=args.one_step)
 
         output_voltages = snn.layers["5"].summed
         prediction = torch.softmax(output_voltages, dim=1).argmax(dim=1)
         correct += (prediction.cpu() == labels).sum().item()
 
         # Reset state variables.
-        # snn.reset_() # for bindsnet 0.2.5
-        snn.reset_state_variables()
+        snn.reset_() # for bindsnet 0.2.5
+        # snn.reset_state_variables()
     #         profiler.step()
 
     t1 = time() - t0
