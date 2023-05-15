@@ -20,6 +20,55 @@ SNNBench workloads consider the following characteristics:
 - Connection types, like fully connected layers
 - Accuracy
 
+## Usage
+
+We recommend using Docker to run these workloads.
+
+### Step 1: Build the Docker Images
+Navigate to the `docker` directory and run the following command:
+```
+./build_docker.sh
+```
+
+### Step 2: Run Each Workload
+
+#### In the `workloads` directory:
+- For Image-STDP, run:
+```
+./run_in_docker.sh python mnist_stdp.py
+```
+- For Image-BackProp, run:
+```
+./run_in_docker.sh python mnist_surrogate.py
+```
+
+#### In the `workloads/conversion` directory:
+- For Image-Conversion, run:
+
+  - Train:
+  ```
+  ./run_in_docker.sh python train_mlp.py --job-dir logs
+  ```
+  - Infer:
+  ```
+  ./run_in_docker.sh python snn_inference.py --job-dir logs --results-file ann
+  ```
+
+#### In the `workloads/speech` directory:
+
+- For Speech-LIF, run:
+```
+./run_in_docker.sh python --model lif
+```
+- For Speech-LSNN, run:
+```
+./run_in_docker.sh python --model lsnn
+```
+- For Speech-LSTM, run:
+```
+./run_in_docker.sh python --model lstm
+```
+
 ## Contributing
 
 We welcome contributions to SNNBench! Please feel free to submit issues, create pull requests, or get in touch with the maintainers to discuss potential improvements or new features.
