@@ -69,6 +69,23 @@ Navigate to the `docker` directory and run the following command:
 ./run_in_docker.sh python --model lstm
 ```
 
+## Publication
+
+Tang, Fei, and Wanling Gao. "SNNBench: End-to-end AI-oriented spiking neural network benchmarking." BenchCouncil Transactions on Benchmarks, Standards and Evaluations (2023): 100108.
+
+If you use SNNBench, please cite:
+
+```
+@article{tang2023snnbench,
+    title={SNNBench: End-to-end AI-oriented spiking neural network benchmarking},
+    author={Tang, Fei and Gao, Wanling},
+    journal={BenchCouncil Transactions on Benchmarks, Standards and Evaluations},
+    pages={100108},
+    year={2023},
+    publisher={Elsevier}
+}
+```
+
 ## Contributing
 
 We welcome contributions to SNNBench! Please feel free to submit issues, create pull requests, or get in touch with the maintainers to discuss potential improvements or new features.
