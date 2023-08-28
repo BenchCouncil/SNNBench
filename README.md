@@ -58,15 +58,15 @@ Navigate to the `docker` directory and run the following command:
 
 - For Speech-LIF, run:
 ```
-./run_in_docker.sh python --model lif
+./run_in_docker.sh python speech.py --model lif
 ```
 - For Speech-LSNN, run:
 ```
-./run_in_docker.sh python --model lsnn
+./run_in_docker.sh python speech.py --model lsnn
 ```
 - For Speech-LSTM, run:
 ```
-./run_in_docker.sh python --model lstm
+./run_in_docker.sh python speech.py --model lstm
 ```
 
 ## Publication
